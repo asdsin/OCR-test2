@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#534AB7"/>
+<title>WIZ-Flow 판정 화면</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f5f4f0;--card:#fff;--text:#1a1a1a;--muted:#888;--border:#e5e4e0;
+  --brand:#534AB7;--success:#1D9E75;--warning:#BA7517;--danger:#C0392B;--info:#378ADD;--r:12px;
+  --font:'Pretendard Variable','Noto Sans KR',system-ui,sans-serif}
+body{font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+
+.header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.95);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px}
+.header h1{font-size:15px;font-weight:700;flex:1;display:flex;align-items:center;gap:6px}
+.header .b{font-size:10px;padding:3px 8px;border-radius:10px;font-weight:600}
+
+.wrap{max-width:500px;margin:0 auto;padding:10px 14px 80px}
+
+.tabs{display:flex;gap:2px;background:#e8e7e2;border-radius:10px;padding:2px;margin-bottom:12px}
+.tab{flex:1;padding:7px;border-radius:8px;font-size:11px;font-weight:600;border:none;background:transparent;
+  color:var(--muted);cursor:pointer;text-align:center;transition:all .15s}
+.tab.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+
+.card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:14px;margin-bottom:10px}
+.card.ok{border-left:4px solid var(--success)}
+.card.warn{border-left:4px solid var(--warning)}
+.card.err{border-left:4px solid var(--danger)}
+.card.corrected{border-left:4px solid var(--info);background:#F0F8FF}
+
+.stitle{font-size:11px;font-weight:600;color:var(--muted);margin:12px 0 6px;display:flex;align-items:center;gap:5px}
+.stitle::before{content:'';width:3px;height:12px;background:var(--brand);border-radius:2px}
+
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px}
+.b-ok{background:#EAF3DE;color:#3B6D11}.b-warn{background:#FAEEDA;color:#854F0B}
+.b-err{background:#FCEBEB;color:#A32D2D}.b-info{background:#E6F1FB;color:#185FA5}
+.b-brand{background:#EEEDFE;color:var(--brand)}.b-learn{background:#FFF3E0;color:#E65100}
+
+.btn{padding:8px 14px;border-radius:8px;border:none;font-size:11px;font-weight:600;cursor:pointer;
+  font-family:var(--font);display:inline-flex;align-items:center;gap:4px;transition:all .15s}
+.btn-p{background:var(--brand);color:#fff}.btn-s{background:var(--success);color:#fff}
+.btn-d{background:var(--danger);color:#fff}.btn-o{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+.btn-w{background:var(--warning);color:#fff}.btn-full{width:100%;justify-content:center}
+
+.cam-wrap{position:relative;border-radius:var(--r);overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:8px}
+.cam-wrap video,.cam-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.cam-hint{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);
+  color:#fff;font-size:10px;padding:3px 10px;border-radius:12px;white-space:nowrap}
+.region-box{position:absolute;border:2px solid var(--danger);border-radius:3px;display:flex;align-items:flex-start;
+  padding:2px 4px;font-size:9px;font-weight:700;color:var(--danger);background:rgba(192,57,43,.08)}
+
+.eq-bar{display:flex;align-items:center;gap:8px;padding:10px;background:#EEEDFE;border-radius:10px;margin-bottom:10px}
+.eq-bar .icon{width:36px;height:36px;border-radius:10px;background:var(--brand);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.eq-bar .info{flex:1}.eq-bar .info .name{font-size:13px;font-weight:600}
+.eq-bar .info .sub{font-size:10px;color:var(--muted)}
+
+.rv-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.rv{padding:8px;background:#f8f8f6;border-radius:8px}
+.rv-l{font-size:9px;color:var(--muted)}.rv-v{font-size:18px;font-weight:700}
+
+.prog{height:3px;background:#f0efe8;border-radius:2px;overflow:hidden;margin:6px 0}
+.prog-bar{height:100%;background:var(--brand);border-radius:2px;transition:width .3s}
+
+/* Correction */
+.correction-form{margin-top:8px;padding:10px;background:#FFF8E1;border:1px solid #FFE082;border-radius:8px}
+.correction-form input{padding:5px 8px;border:1px solid #FFE082;border-radius:6px;font-size:12px;width:80px;text-align:center;font-family:var(--font)}
+.correction-form select{padding:5px 8px;border:1px solid #FFE082;border-radius:6px;font-size:11px;font-family:var(--font)}
+
+/* History */
+.hist-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0efe8;font-size:11px}
+.hist-item:last-child{border-bottom:none}
+
+.log{font-size:10px;max-height:140px;overflow-y:auto;background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:8px}
+.log-e{padding:3px 0;border-bottom:1px solid #f8f8f6;display:flex;gap:6px}
+.log-t{color:var(--muted);flex-shrink:0;font-family:monospace;font-size:9px}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);
+  background:var(--text);color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;
+  z-index:999;opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔍 판정 화면 <span class="b" style="background:#EEEDFE;color:var(--brand)">PoC v2</span></h1>
+  <button class="btn btn-o" onclick="location.href='wizflow_ai_poc_v2_setup.html'" style="font-size:10px">⚙ 기준정보</button>
+</div>
+
+<div class="wrap" id="wrap">
+  <div class="tabs">
+    <button class="tab on" onclick="goTab('judge')" id="tJudge">📸 판정</button>
+    <button class="tab" onclick="goTab('learn')" id="tLearn">🧠 학습 이력</button>
+    <button class="tab" onclick="goTab('history')" id="tHistory">📜 판정 이력</button>
+    <button class="tab" onclick="goTab('voice')" id="tVoice">🎤 음성</button>
+  </div>
+
+  <!-- ═══ JUDGE TAB ═══ -->
+  <div id="pJudge">
+    <!-- Step indicator -->
+    <div style="display:flex;gap:4px;margin-bottom:10px">
+      <div id="step1" style="flex:1;padding:6px;border-radius:6px;background:var(--brand);color:#fff;text-align:center;font-size:10px;font-weight:600">① QR 스캔</div>
+      <div id="step2" style="flex:1;padding:6px;border-radius:6px;background:#f0efe8;color:var(--muted);text-align:center;font-size:10px;font-weight:600">② 촬영</div>
+      <div id="step3" style="flex:1;padding:6px;border-radius:6px;background:#f0efe8;color:var(--muted);text-align:center;font-size:10px;font-weight:600">③ 판정</div>
+    </div>
+
+    <!-- QR Scan -->
+    <div id="qrArea">
+      <div class="cam-wrap">
+        <video id="qrV" autoplay playsinline muted></video>
+        <canvas id="qrC" style="display:none"></canvas>
+        <div class="cam-hint" id="qrH">QR 코드를 비춰주세요</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-o btn-full" onclick="manualQr()">수동 입력</button>
+        <button class="btn btn-o btn-full" onclick="demoScan()">🧪 데모</button>
+      </div>
+    </div>
+
+    <!-- Equipment identified -->
+    <div id="eqArea" style="display:none">
+      <div class="eq-bar" id="jEqBar">
+        <div class="icon">🔧</div>
+        <div class="info"><div class="name" id="jEqName"></div><div class="sub" id="jEqSub"></div></div>
+      </div>
+
+      <!-- Capture -->
+      <div class="cam-wrap" id="capArea" style="display:none">
+        <video id="capV" autoplay playsinline muted></video>
+        <img id="capI" style="display:none"/>
+        <canvas id="capC" style="display:none"></canvas>
+        <div id="overlay"></div>
+        <div class="cam-hint" id="capH">빨간 영역을 맞추고 촬영</div>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-bottom:8px" id="capBtns">
+        <button class="btn btn-p btn-full" id="bCap" onclick="doCapture()">📸 촬영 + 판정</button>
+        <button class="btn btn-o" id="bRetake" style="display:none" onclick="doRetake()">🔄</button>
+        <button class="btn btn-o" onclick="document.getElementById('fIn').click()">📁</button>
+        <input type="file" id="fIn" accept="image/*" capture="environment" style="display:none" onchange="onFile(event)"/>
+      </div>
+
+      <!-- OCR Progress -->
+      <div id="ocrProg" style="display:none">
+        <div class="prog"><div class="prog-bar" id="pBar"></div></div>
+        <div id="pStat" style="font-size:10px;color:var(--muted)"></div>
+      </div>
+
+      <!-- Results + Correction -->
+      <div id="results"></div>
+
+      <!-- Back to QR -->
+      <button class="btn btn-o btn-full" onclick="resetToQr()" style="margin-top:8px">← 다른 설비 스캔</button>
+    </div>
+  </div>
+
+  <!-- ═══ LEARN TAB ═══ -->
+  <div id="pLearn" style="display:none">
+    <div class="stitle">🧠 학습 이력 (오판정 수정 기록)</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">
+      OCR 인식 오류를 사람이 수정하면, <b>보정값</b>이 누적됩니다.<br>
+      같은 설비의 같은 영역에서 비슷한 OCR 결과가 나오면 보정값이 자동 적용됩니다.
+    </p>
+
+    <div class="card">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">보정 통계</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
+        <div class="rv"><div class="rv-l">총 보정 횟수</div><div class="rv-v" id="learnTotal" style="font-size:22px">0</div></div>
+        <div class="rv"><div class="rv-l">보정 적용 횟수</div><div class="rv-v" id="learnApplied" style="font-size:22px;color:var(--success)">0</div></div>
+        <div class="rv"><div class="rv-l">보정 정확도</div><div class="rv-v" id="learnAccuracy" style="font-size:22px;color:var(--brand)">—</div></div>
+      </div>
+    </div>
+
+    <div id="learnList"></div>
+
+    <!-- 관리자만 일괄 삭제 가능 -->
+    <div id="learnAdminArea" style="display:none;margin-top:10px">
+      <button class="btn btn-d btn-full" onclick="if(confirm('⚠️ 관리자 권한: 학습 데이터를 전체 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')){corrections=[];saveCorrections();renderLearn();toast('학습 데이터 초기화 완료');}">🔐 학습 데이터 일괄 초기화 (관리자 전용)</button>
+    </div>
+  </div>
+
+  <!-- ═══ HISTORY TAB ═══ -->
+  <div id="pHistory" style="display:none">
+    <div class="stitle">📜 판정 이력</div>
+    <div id="historyList"></div>
+    <!-- 관리자만 이력 초기화 가능 -->
+    <div id="histAdminArea" style="display:none;margin-top:10px">
+      <button class="btn btn-o btn-full" onclick="if(confirm('⚠️ 관리자 권한: 판정 이력을 전체 초기화하시겠습니까?')){judgeHistory=[];saveHistory();renderHistory();toast('이력 초기화 완료');}">🔐 이력 초기화 (관리자 전용)</button>
+    </div>
+  </div>
+
+  <!-- ═══ VOICE TAB ═══ -->
+  <div id="pVoice" style="display:none">
+    <div class="stitle">🎤 음성 명령</div>
+    <button class="btn btn-full" id="vBtn" onclick="toggleVoice()" style="padding:16px;border:2px dashed var(--border);background:var(--card);color:var(--muted)">🎤 음성 명령 시작</button>
+    <div id="vText" style="margin-top:8px;padding:10px;background:var(--card);border-radius:10px;border:1px solid var(--border);font-size:12px;color:var(--muted)">대기 중...</div>
+    <div class="card" style="margin-top:8px;font-size:11px;color:var(--muted);line-height:1.8">
+      <b>"촬영"</b> — 촬영 모드<br>
+      <b>"스캔"</b> / <b>"QR"</b> — QR 스캔<br>
+      <b>"온도"</b> / <b>"압력"</b> / <b>"회전수"</b> / <b>"전류"</b> — 최근 결과<br>
+      <b>"설비 상태"</b> — 종합 요약
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div style="margin-top:12px">
+    <div class="stitle">이벤트 로그</div>
+    <div class="log" id="logBox"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// State
+// ═══════════════════════════════════════
+const LS='wizflow_poc_v2', LS_CORR='wizflow_corrections', LS_HIST='wizflow_judge_history', LS_USER='wizflow_users';
+let equipDB={}, corrections=[], judgeHistory=[];
+let currentEquip=null, lastResults=[], qrStream=null, capStream=null, qrOn=false;
+let isListening=false, recognition=null;
+
+// ═══ 사용자/권한 관리 ═══
+let usersDB = {};     // id → { id, name, role, pin }
+let currentUser = null; // 현재 로그인 사용자
+
+const ROLES = {
+  admin:  { label: '관리자', color: '#C0392B', permissions: ['judge','learn_edit','learn_delete','learn_bulk_delete','history_delete','settings','user_manage'] },
+  leader: { label: '리더/반장', color: '#534AB7', permissions: ['judge','learn_edit','learn_delete','history_delete'] },
+  worker: { label: '작업자', color: '#1D9E75', permissions: ['judge','learn_edit'] },
+};
+
+function hasPermission(perm) {
+  if (!currentUser) return false;
+  const role = ROLES[currentUser.role];
+  return role && role.permissions.includes(perm);
+}
+
+function loadUsers() {
+  try { const s = localStorage.getItem(LS_USER); if(s) usersDB = JSON.parse(s); } catch(e) {}
+  // 기본 관리자 없으면 생성
+  if (Object.keys(usersDB).length === 0) {
+    usersDB['admin'] = { id: 'admin', name: '관리자', role: 'admin', pin: '1234' };
+    usersDB['worker1'] = { id: 'worker1', name: '작업자1', role: 'worker', pin: '0000' };
+    saveUsers();
+  }
+}
+function saveUsers() { localStorage.setItem(LS_USER, JSON.stringify(usersDB)); }
+
+function loadAll(){
+  try{const s=localStorage.getItem(LS);if(s)equipDB=JSON.parse(s);}catch(e){}
+  try{const s=localStorage.getItem(LS_CORR);if(s)corrections=JSON.parse(s);}catch(e){}
+  try{const s=localStorage.getItem(LS_HIST);if(s)judgeHistory=JSON.parse(s);}catch(e){}
+  loadUsers();
+}
+function saveDB(){localStorage.setItem(LS,JSON.stringify(equipDB));}
+function saveCorrections(){localStorage.setItem(LS_CORR,JSON.stringify(corrections));}
+function saveHistory(){localStorage.setItem(LS_HIST,JSON.stringify(judgeHistory));}
+
+// ═══════════════════════════════════════
+// Tab Navigation
+// ═══════════════════════════════════════
+function goTab(t){
+  ['Judge','Learn','History','Voice'].forEach(p=>{
+    document.getElementById('p'+p).style.display='none';
+    document.getElementById('t'+p).classList.remove('on');
+  });
+  document.getElementById('p'+t.charAt(0).toUpperCase()+t.slice(1)).style.display='block';
+  document.getElementById('t'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('on');
+  stopCams();
+  if(t==='judge'&&!currentEquip)startQr();
+  if(t==='learn')renderLearn();
+  if(t==='history')renderHistory();
+}
+
+function stopCams(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null;}if(capStream){capStream.getTracks().forEach(t=>t.stop());capStream=null;}qrOn=false;}
+
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('step'+i);
+    el.style.background=i<=n?'var(--brand)':'#f0efe8';
+    el.style.color=i<=n?'#fff':'var(--muted)';
+  });
+}
+
+// ═══════════════════════════════════════
+// Mobile Camera Helper
+// ═══════════════════════════════════════
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/.test(navigator.userAgent);
+const isMobile = isIOS || isAndroid;
+
+function checkHttps() {
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    const msg = '⚠️ HTTPS 필요: 카메라/마이크 사용을 위해 HTTPS로 접속해주세요.\n\n현재: ' + location.href +
+      '\n\n해결 방법:\n1. 카페24 등 HTTPS 호스팅에 업로드\n2. ngrok 사용: ngrok http 8080\n3. 로컬: python3 -m http.server → localhost로 접속';
+    log('⚠️ HTTPS 필요 — 카메라 접근 제한됨', 'warn');
+    return false;
+  }
+  return true;
+}
+
+async function requestCamera(constraints) {
+  // 1. 권한 상태 확인 (지원하는 브라우저만)
+  if (navigator.permissions && navigator.permissions.query) {
+    try {
+      const perm = await navigator.permissions.query({ name: 'camera' });
+      if (perm.state === 'denied') {
+        log('카메라 권한 거부됨 — 브라우저 설정에서 허용해주세요', 'error');
+        return null;
+      }
+    } catch(e) { /* iOS Safari 미지원 — 무시 */ }
+  }
+
+  // 2. iOS Safari 대응: constraints 간소화
+  let finalConstraints = constraints;
+  if (isIOS) {
+    // iOS는 복잡한 constraints 거부하는 경우 있음
+    finalConstraints = {
+      video: { facingMode: 'environment' },
+      audio: false
+    };
+  }
+
+  // 3. 카메라 접근 시도
+  try {
+    return await navigator.mediaDevices.getUserMedia(finalConstraints);
+  } catch(e1) {
+    log(`카메라 1차 시도 실패: ${e1.name} — 대체 설정 시도`, 'warn');
+    // 4. 폴백: 기본 설정으로 재시도
+    try {
+      return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    } catch(e2) {
+      log(`카메라 접근 실패: ${e2.name} — ${e2.message}`, 'error');
+      return null;
+    }
+  }
+}
+
+function attachStream(videoEl, stream) {
+  videoEl.srcObject = stream;
+  videoEl.setAttribute('autoplay', '');
+  videoEl.setAttribute('playsinline', '');
+  videoEl.setAttribute('muted', '');
+  videoEl.muted = true;
+
+  // iOS Safari: 명시적 play() 호출 필요
+  const playPromise = videoEl.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(err => {
+      log('비디오 자동재생 실패 — 터치 후 재시도', 'warn');
+      // 터치 이벤트로 재시도
+      const handler = () => { videoEl.play(); document.removeEventListener('touchstart', handler); };
+      document.addEventListener('touchstart', handler, { once: true });
+    });
+  }
+}
+
+// ═══════════════════════════════════════
+// QR Scan
+// ═══════════════════════════════════════
+async function startQr(){
+  setStep(1);
+  document.getElementById('qrArea').style.display='block';
+  document.getElementById('eqArea').style.display='none';
+
+  if (!checkHttps()) {
+    document.getElementById('qrH').textContent='⚠️ HTTPS 필요 — 수동 입력 또는 데모 사용';
+    return;
+  }
+
+  try{
+    const v=document.getElementById('qrV');
+    qrStream = await requestCamera({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+
+    if (!qrStream) {
+      document.getElementById('qrH').textContent='카메라 접근 불가 — 수동 입력 사용';
+      return;
+    }
+
+    attachStream(v, qrStream);
+
+    // 비디오 준비 대기
+    await new Promise(resolve => {
+      if (v.readyState >= v.HAVE_ENOUGH_DATA) resolve();
+      else v.addEventListener('loadeddata', resolve, { once: true });
+    });
+
+    qrOn=true;
+    scanFrame();
+    document.getElementById('qrH').textContent='QR 코드를 비춰주세요';
+    log('QR 스캔 시작 (' + (isMobile ? (isIOS?'iOS':'Android') : 'PC') + ')','info');
+  } catch(e) {
+    document.getElementById('qrH').textContent='카메라 불가 — 수동 입력 또는 데모';
+    log('카메라 실패: '+e.message,'warn');
+  }
+}
+
+function scanFrame(){
+  if(!qrOn)return;
+  const v=document.getElementById('qrV'),c=document.getElementById('qrC');
+  if(v.readyState<v.HAVE_ENOUGH_DATA || v.videoWidth===0){
+    requestAnimationFrame(scanFrame);return;
+  }
+  c.width=v.videoWidth;c.height=v.videoHeight;
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(v,0,0);
+  try {
+    const imgData=ctx.getImageData(0,0,c.width,c.height);
+    const qr=jsQR(imgData.data,c.width,c.height,{inversionAttempts:'dontInvert'});
+    if(qr&&qr.data){qrOn=false;identify(qr.data);return;}
+  } catch(e) { /* getImageData 실패 시 무시 */ }
+  requestAnimationFrame(scanFrame);
+}
+
+function identify(qrData){
+  stopCams();
+  const eq=equipDB[qrData];
+  if(eq){currentEquip=eq;log(`설비 식별: ${eq.name}`,'ok');speak('설비 인식. '+eq.name);}
+  else{currentEquip={code:qrData,name:'미등록 설비',qr:qrData,zones:[]};log(`미등록 QR: ${qrData}`,'warn');speak('미등록 설비입니다.');}
+  showEquip();
+}
+
+function manualQr(){const c=prompt('설비코드/QR값:');if(c)identify(c.trim());}
+function demoScan(){
+  if(!equipDB['EQ-DEMO-001']){
+    equipDB['EQ-DEMO-001']={code:'EQ-DEMO-001',name:'DWIN HMI 데모',qr:'EQ-DEMO-001',zones:[
+      {id:'z1',label:'온도',metric:'temp',unit:'°C',x:70,y:5,w:25,h:15,warnVal:80,errVal:95,inverse:false,zoneType:'numeric'},
+      {id:'z2',label:'압력',metric:'pres',unit:'MPa',x:5,y:30,w:30,h:15,warnVal:5,errVal:7,inverse:false,zoneType:'numeric'},
+      {id:'z3',label:'회전수',metric:'rpm',unit:'rpm',x:5,y:60,w:30,h:15,warnVal:800,errVal:500,inverse:true,zoneType:'numeric'},
+      {id:'z4',label:'전류',metric:'amp',unit:'A',x:60,y:60,w:30,h:15,warnVal:15,errVal:20,inverse:false,zoneType:'numeric'},
+      {id:'z5',label:'OK/NG신호',metric:'signal',unit:'—',x:40,y:85,w:20,h:12,warnVal:0,errVal:0,inverse:false,zoneType:'signal',
+       okTexts:'OK,PASS,RUN,정상,양품,GOOD',ngTexts:'NG,FAIL,STOP,이상,불량,BAD,ERROR'},
+      {id:'z6',label:'LED색상',metric:'color',unit:'—',x:85,y:85,w:12,h:12,warnVal:0,errVal:0,inverse:false,zoneType:'color'},
+    ]};saveDB();
+  }
+  identify('EQ-DEMO-001');
+}
+
+function showEquip(){
+  setStep(2);
+  document.getElementById('qrArea').style.display='none';
+  document.getElementById('eqArea').style.display='block';
+  document.getElementById('jEqName').textContent=currentEquip.name;
+  document.getElementById('jEqSub').textContent=`${currentEquip.code} · OCR ${currentEquip.zones.length}개 영역`;
+
+  if(currentEquip.zones.length===0){
+    document.getElementById('capArea').style.display='none';
+    document.getElementById('results').innerHTML=`<div class="card warn">OCR 영역 미설정 — <a href="wizflow_ai_poc_v2_setup.html" style="color:var(--brand)">기준정보 설정</a>에서 등록하세요.</div>`;
+    return;
+  }
+
+  document.getElementById('capArea').style.display='block';
+  startCap();
+}
+
+async function startCap(){
+  if (!checkHttps()) {
+    document.getElementById('capH').textContent='⚠️ HTTPS 필요 — 파일 업로드 사용';
+    return;
+  }
+
+  try{
+    const v=document.getElementById('capV');
+    capStream = await requestCamera({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+
+    if (!capStream) {
+      document.getElementById('capH').textContent='카메라 불가 — 📁 파일 업로드 사용';
+      return;
+    }
+
+    attachStream(v, capStream);
+    v.style.display='block';
+    document.getElementById('capI').style.display='none';
+    document.getElementById('bCap').style.display='inline-flex';
+    document.getElementById('bRetake').style.display='none';
+    document.getElementById('results').innerHTML='';
+    drawOverlay();
+    document.getElementById('capH').textContent=`${currentEquip.zones.length}개 영역 · 촬영 버튼을 누르세요`;
+  }catch(e){
+    document.getElementById('capH').textContent='카메라 불가 — 📁 파일 업로드 사용';
+    log('촬영 카메라 실패: '+e.message,'warn');
+  }
+}
+
+function drawOverlay(){
+  if(!currentEquip?.zones)return;
+  document.getElementById('overlay').innerHTML=currentEquip.zones.map(z=>
+    `<div class="region-box" style="left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%">${z.label}</div>`
+  ).join('');
+}
+
+function doCapture(){
+  const v=document.getElementById('capV'),c=document.getElementById('capC');
+  c.width=v.videoWidth||1280;c.height=v.videoHeight||720;
+  c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+  document.getElementById('capI').src=c.toDataURL('image/jpeg',.95);
+  document.getElementById('capI').style.display='block';v.style.display='none';
+  document.getElementById('bCap').style.display='none';
+  document.getElementById('bRetake').style.display='inline-flex';
+  stopCams();drawOverlay();processOcr(c);
+}
+
+function onFile(event){
+  const f=event.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.getElementById('capC');c.width=img.width;c.height=img.height;
+      c.getContext('2d').drawImage(img,0,0);
+      document.getElementById('capI').src=e.target.result;
+      document.getElementById('capI').style.display='block';
+      document.getElementById('capV').style.display='none';
+      document.getElementById('bCap').style.display='none';
+      document.getElementById('bRetake').style.display='inline-flex';
+      stopCams();drawOverlay();processOcr(c);
+    };img.src=e.target.result;
+  };r.readAsDataURL(f);
+}
+
+function doRetake(){document.getElementById('results').innerHTML='';document.getElementById('ocrProg').style.display='none';startCap();}
+function resetToQr(){currentEquip=null;lastResults=[];document.getElementById('results').innerHTML='';startQr();}
+
+// ═══════════════════════════════════════
+// Zone OCR + Judgment + Correction UI
+// ═══════════════════════════════════════
+// ★ 핵심 판정 엔진 v2
+// ═══════════════════════════════════════
+
+/** OCR 전처리 고도화 */
+function preprocessCrop(cctx, cw, ch, options) {
+  const d = cctx.getImageData(0, 0, cw, ch);
+  const px = d.data;
+
+  // Step 1: 그레이스케일
+  const gray = new Uint8Array(cw * ch);
+  for (let i = 0; i < gray.length; i++) {
+    gray[i] = Math.round(px[i*4]*0.299 + px[i*4+1]*0.587 + px[i*4+2]*0.114);
+  }
+
+  // Step 2: Otsu 이진화 임계값 계산
+  const hist = new Array(256).fill(0);
+  for (const g of gray) hist[g]++;
+  const total = gray.length;
+  let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, wF = 0, maxVar = 0, threshold = 128;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t]; if (wB === 0) continue;
+    wF = total - wB; if (wF === 0) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > maxVar) { maxVar = between; threshold = t; }
+  }
+
+  // Step 3: 이진화 적용 + 반전 감지 (어두운 배경 + 밝은 글자)
+  let darkCount = 0;
+  for (const g of gray) if (g < threshold) darkCount++;
+  const invert = darkCount > total * 0.6; // 배경이 어두우면 반전
+
+  for (let i = 0; i < gray.length; i++) {
+    let val = gray[i] > threshold ? 255 : 0;
+    if (invert) val = 255 - val;
+    px[i*4] = px[i*4+1] = px[i*4+2] = val;
+  }
+
+  // Step 4: 간단한 노이즈 제거 (고립 픽셀 제거)
+  for (let y = 1; y < ch - 1; y++) {
+    for (let x = 1; x < cw - 1; x++) {
+      const idx = (y * cw + x) * 4;
+      const cur = px[idx];
+      let sameCount = 0;
+      for (const [dy, dx] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const ni = ((y+dy)*cw + (x+dx)) * 4;
+        if (px[ni] === cur) sameCount++;
+      }
+      if (sameCount === 0) { // 완전 고립 → 주변값으로 대체
+        const ni = ((y-1)*cw + x) * 4;
+        px[idx] = px[idx+1] = px[idx+2] = px[ni];
+      }
+    }
+  }
+
+  cctx.putImageData(d, 0, 0);
+  return { threshold, invert };
+}
+
+/** 색상 분석: 영역 내 주요 색상 판별 */
+function analyzeColor(canvas, zone) {
+  const cx = Math.round(canvas.width * zone.x / 100);
+  const cy = Math.round(canvas.height * zone.y / 100);
+  const cw = Math.round(canvas.width * zone.w / 100);
+  const ch = Math.round(canvas.height * zone.h / 100);
+
+  const cc = document.createElement('canvas'); cc.width = cw; cc.height = ch;
+  const ctx = cc.getContext('2d');
+  ctx.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
+  const d = ctx.getImageData(0, 0, cw, ch).data;
+
+  // HSL 기반 색상 분류
+  let counts = { red: 0, green: 0, yellow: 0, gray: 0, total: 0 };
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    const l = (max + min) / 2;
+    const sat = max === min ? 0 : (l > 127 ? (max-min)/(510-max-min) : (max-min)/(max+min));
+
+    counts.total++;
+    if (sat < 0.15 || l < 30 || l > 240) { counts.gray++; continue; } // 무채색
+
+    let h = 0;
+    if (max === r) h = 60 * ((g-b)/(max-min));
+    else if (max === g) h = 60 * (2 + (b-r)/(max-min));
+    else h = 60 * (4 + (r-g)/(max-min));
+    if (h < 0) h += 360;
+
+    if ((h < 30 || h > 330) && sat > 0.3) counts.red++;
+    else if (h > 80 && h < 170 && sat > 0.2) counts.green++;
+    else if (h > 30 && h < 80 && sat > 0.2) counts.yellow++;
+    else counts.gray++;
+  }
+
+  // 비율 계산
+  const t = counts.total || 1;
+  const ratios = {
+    red: counts.red / t,
+    green: counts.green / t,
+    yellow: counts.yellow / t,
+    gray: counts.gray / t,
+  };
+
+  // 판정
+  const dominant = Object.entries(ratios).sort((a,b) => b[1] - a[1])[0];
+  let level, levelLabel, colorName;
+
+  if (dominant[0] === 'green' && dominant[1] > 0.15) {
+    level = 'ok'; levelLabel = '정상'; colorName = '🟢 녹색';
+  } else if (dominant[0] === 'red' && dominant[1] > 0.15) {
+    level = 'err'; levelLabel = '이상'; colorName = '🔴 빨강';
+  } else if (dominant[0] === 'yellow' && dominant[1] > 0.15) {
+    level = 'warn'; levelLabel = '경고'; colorName = '🟡 노랑';
+  } else {
+    level = 'info'; levelLabel = '꺼짐/미감지'; colorName = '⚪ 무채색';
+  }
+
+  return { level, levelLabel, colorName, ratios, dominant: dominant[0] };
+}
+
+/** OK/NG 텍스트 신호 판정 */
+function judgeSignal(ocrText, zone) {
+  const text = ocrText.toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9가-힣]/g, '');
+
+  const okList = (zone.okTexts || 'OK,PASS,RUN,정상,양품,GOOD').split(',').map(s => s.trim().toUpperCase());
+  const ngList = (zone.ngTexts || 'NG,FAIL,STOP,이상,불량,BAD,ERROR,ERR').split(',').map(s => s.trim().toUpperCase());
+
+  for (const ng of ngList) {
+    if (ng && text.includes(ng)) return { level: 'err', levelLabel: 'NG', matched: ng, type: 'NG' };
+  }
+  for (const ok of okList) {
+    if (ok && text.includes(ok)) return { level: 'ok', levelLabel: 'OK', matched: ok, type: 'OK' };
+  }
+
+  return { level: 'warn', levelLabel: '미식별', matched: null, type: 'UNKNOWN' };
+}
+
+async function processOcr(canvas) {
+  const zones = currentEquip?.zones || [];
+  if (!zones.length) return;
+  setStep(3);
+  document.getElementById('ocrProg').style.display = 'block';
+  lastResults = [];
+  let html = '', hasIssue = false;
+
+  // ★ 촬영 이미지 증빙 저장
+  const captureImage = canvas.toDataURL('image/jpeg', 0.7);
+
+  for (let i = 0; i < zones.length; i++) {
+    const z = zones[i];
+    const zoneType = z.zoneType || (z.metric === 'signal' ? 'signal' : z.metric === 'color' ? 'color' : 'numeric');
+
+    document.getElementById('pStat').textContent = `${z.label} (${i+1}/${zones.length})`;
+    document.getElementById('pBar').style.width = ((i+1)/zones.length*100) + '%';
+
+    // ─── 색상 판정 (OCR 불필요) ───
+    if (zoneType === 'color') {
+      const colorResult = analyzeColor(canvas, z);
+      if (colorResult.level === 'err' || colorResult.level === 'warn') hasIssue = true;
+
+      const r = {
+        zone: z, value: null, text: colorResult.colorName, confidence: 100,
+        level: colorResult.level, levelLabel: colorResult.levelLabel,
+        corrected: false, correctedFrom: null,
+        colorData: colorResult,
+        timestamp: new Date().toISOString(),
+      };
+      lastResults.push(r);
+
+      html += `<div class="card ${colorResult.level}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:13px;font-weight:600">${z.label}</span>
+          <span class="badge b-${colorResult.level}">${colorResult.levelLabel}</span>
+        </div>
+        <div class="rv-grid">
+          <div class="rv"><div class="rv-l">감지 색상</div><div class="rv-v" style="font-size:16px">${colorResult.colorName}</div></div>
+          <div class="rv"><div class="rv-l">색상 비율</div><div style="font-size:10px;color:var(--muted)">
+            🔴${(colorResult.ratios.red*100).toFixed(0)}% 🟢${(colorResult.ratios.green*100).toFixed(0)}% 🟡${(colorResult.ratios.yellow*100).toFixed(0)}%
+          </div></div>
+        </div>
+      </div>`;
+
+      log(`[색상] ${z.label}: ${colorResult.colorName} → ${colorResult.levelLabel}`, colorResult.level === 'ok' ? 'ok' : 'warn');
+      continue;
+    }
+
+    // ─── 크롭 + 전처리 ───
+    const cx = Math.round(canvas.width * z.x / 100);
+    const cy = Math.round(canvas.height * z.y / 100);
+    const cw = Math.round(canvas.width * z.w / 100);
+    const ch = Math.round(canvas.height * z.h / 100);
+    const cc = document.createElement('canvas'); cc.width = cw; cc.height = ch;
+    const cctx = cc.getContext('2d');
+    cctx.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
+
+    // ★ 고도화 전처리 (Otsu 이진화 + 노이즈 제거)
+    const preInfo = preprocessCrop(cctx, cw, ch);
+
+    try {
+      const result = await Tesseract.recognize(cc.toDataURL('image/png'), 'eng+kor', {
+        logger: m => {
+          if (m.progress !== undefined)
+            document.getElementById('pBar').style.width = ((i + m.progress) / zones.length * 100) + '%';
+        }
+      });
+      const text = result.data.text.trim();
+      const conf = result.data.confidence;
+
+      // ─── 신호형 판정 (OK/NG) ───
+      if (zoneType === 'signal') {
+        const sig = judgeSignal(text, z);
+        if (sig.level === 'err') hasIssue = true;
+
+        const r = {
+          zone: z, value: null, text, confidence: conf,
+          level: sig.level, levelLabel: sig.levelLabel,
+          signalType: sig.type, signalMatched: sig.matched,
+          corrected: false, correctedFrom: null,
+          preprocess: preInfo,
+          timestamp: new Date().toISOString(),
+        };
+        lastResults.push(r);
+
+        html += `<div class="card ${sig.level}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:600">${z.label}</span>
+            <span class="badge b-${sig.level}" style="font-size:14px;padding:4px 12px">${sig.levelLabel}</span>
+          </div>
+          <div class="rv-grid">
+            <div class="rv"><div class="rv-l">신호 판정</div><div class="rv-v" style="font-size:20px;color:var(--${sig.level==='ok'?'success':'danger'})">${sig.type}</div></div>
+            <div class="rv"><div class="rv-l">매칭 텍스트</div><div style="font-size:12px;font-weight:600">${sig.matched || '—'}</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">OCR: "${text}" · 신뢰도: ${conf.toFixed(0)}% · 임계값: ${preInfo.threshold}${preInfo.invert?' (반전)':''}</div>
+          <div style="margin-top:6px;display:flex;gap:6px">
+            <button class="btn btn-o" onclick="showCorrection(${i})" style="font-size:10px;padding:4px 10px">✏️ 값 수정</button>
+            <button class="btn btn-o" onclick="showJudgeCorrection(${i})" style="font-size:10px;padding:4px 10px">⚖️ 판정 수정</button>
+          </div>
+          <div id="corrForm_${i}" style="display:none"></div>
+        </div>`;
+
+        log(`[신호] ${z.label}: OCR "${text}" → ${sig.type} (${sig.matched || '미식별'})`, sig.level === 'ok' ? 'ok' : 'error');
+        continue;
+      }
+
+      // ─── 수치형 판정 (기존 + 개선) ───
+      const nums = text.match(/-?\d+\.?\d*/g);
+      let value = nums ? parseFloat(nums[0]) : null;
+
+      // ★ 학습 보정 적용
+      const correction = findCorrection(currentEquip.qr, z.metric, text);
+      let corrected = false, correctedFrom = null;
+      if (correction && value !== null) {
+        correctedFrom = value;
+        value = correction.correctValue;
+        corrected = true;
+        log(`[보정] ${z.label}: OCR ${correctedFrom} → 보정값 ${value}`, 'info');
+        bumpCorrectionApplied(correction.id);
+      }
+
+      // 판정
+      let level = 'info', levelLabel = '미판정';
+      if (value !== null) {
+        if (z.inverse) {
+          if (value <= z.errVal) { level = 'err'; levelLabel = '이상'; }
+          else if (value <= z.warnVal) { level = 'warn'; levelLabel = '경고'; }
+          else { level = 'ok'; levelLabel = '정상'; }
+        } else {
+          if (value >= z.errVal) { level = 'err'; levelLabel = '이상'; }
+          else if (value >= z.warnVal) { level = 'warn'; levelLabel = '경고'; }
+          else { level = 'ok'; levelLabel = '정상'; }
+        }
+      }
+      if (level === 'err' || level === 'warn') hasIssue = true;
+
+      const r = {
+        zone: z, value, text, confidence: conf, level, levelLabel,
+        corrected, correctedFrom, preprocess: preInfo,
+        timestamp: new Date().toISOString(),
+      };
+      lastResults.push(r);
+
+      html += `<div class="card ${corrected ? 'corrected' : level}" id="result_${i}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:13px;font-weight:600">${z.label}</span>
+          <div style="display:flex;gap:4px">
+            ${corrected ? '<span class="badge b-learn">🧠 보정됨</span>' : ''}
+            <span class="badge b-${level}">${levelLabel}</span>
+          </div>
+        </div>
+        ${corrected ? `<div style="font-size:10px;color:var(--info);margin-bottom:4px">OCR: ${correctedFrom} → 보정: ${value}${z.unit}</div>` : ''}
+        <div class="rv-grid">
+          <div class="rv"><div class="rv-l">측정값</div><div class="rv-v" style="color:var(--${level==='ok'?'success':level==='warn'?'warning':'danger'})">${value !== null ? value + z.unit : '—'}</div></div>
+          <div class="rv"><div class="rv-l">기준</div><div class="rv-v" style="font-size:13px;color:var(--muted)">${z.inverse ? '≥' : '≤'}${z.warnVal}${z.unit}</div></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">OCR: "${text}" · 신뢰도: ${conf.toFixed(0)}% · Otsu: ${preInfo.threshold}${preInfo.invert ? ' (반전)' : ''}</div>
+        <div style="margin-top:6px;display:flex;gap:6px">
+          <button class="btn btn-o" onclick="showCorrection(${i})" style="font-size:10px;padding:4px 10px">✏️ 값 수정 (오인식)</button>
+          <button class="btn btn-o" onclick="showJudgeCorrection(${i})" style="font-size:10px;padding:4px 10px">⚖️ 판정 수정</button>
+        </div>
+        <div id="corrForm_${i}" style="display:none"></div>
+      </div>`;
+
+    } catch(e) {
+      log(`[${z.label}] OCR 실패: ${e.message}`, 'error');
+      html += `<div class="card err">${z.label} OCR 실패: ${e.message}</div>`;
+    }
+  }
+
+  document.getElementById('ocrProg').style.display = 'none';
+  document.getElementById('results').innerHTML = html;
+
+  // ★ 이력 저장 (이미지 증빙 포함)
+  judgeHistory.unshift({
+    equipCode: currentEquip.code, equipName: currentEquip.name,
+    results: lastResults.map(r => ({
+      label: r.zone.label, value: r.value, text: r.text,
+      level: r.levelLabel, corrected: r.corrected,
+      signalType: r.signalType, colorData: r.colorData?.colorName,
+    })),
+    captureImage: captureImage.substring(0, 50000), // 이미지 증빙 (50KB 제한)
+    timestamp: new Date().toISOString(),
+    user: currentUser?.name || '—',
+  });
+  if (judgeHistory.length > 200) judgeHistory = judgeHistory.slice(0, 200);
+  saveHistory();
+
+  // TTS 요약
+  const ttsItems = lastResults.filter(r => r.level !== 'info').map(r => {
+    if (r.signalType) return `${r.zone.label} ${r.signalType}`;
+    if (r.colorData) return `${r.zone.label} ${r.colorData.colorName}`;
+    return `${r.zone.label} ${r.value}${r.zone.unit}, ${r.levelLabel}`;
+  });
+  const msg = ttsItems.join('. ');
+  if (hasIssue) { speak('주의! ' + msg); log('⚠️ ' + msg, 'error'); }
+  else if (msg) { speak('판정 완료. ' + msg); log('✅ ' + msg, 'ok'); }
+}
+
+// ═══════════════════════════════════════
+// ★ Learning: Correction
+// ═══════════════════════════════════════
+function showCorrection(idx){
+  const r=lastResults[idx];
+  document.getElementById('corrForm_'+idx).style.display='block';
+  document.getElementById('corrForm_'+idx).innerHTML=`
+    <div class="correction-form">
+      <div style="font-size:11px;font-weight:600;margin-bottom:6px">🧠 값 수정 (학습)</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted)">OCR 인식값: <b>${r.value}</b></span>
+        <span style="font-size:11px">→ 실제값:</span>
+        <input type="number" step="0.1" id="corrVal_${idx}" value="${r.value||''}" style="width:100px"/>
+        <span style="font-size:11px">${r.zone.unit}</span>
+        <button class="btn btn-w" onclick="submitCorrection(${idx})" style="padding:4px 12px;font-size:10px">보정 등록</button>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:4px">이 수정은 학습 데이터로 저장되어, 동일 조건에서 자동 보정됩니다.</div>
+    </div>`;
+}
+
+function showJudgeCorrection(idx){
+  const r=lastResults[idx];
+  document.getElementById('corrForm_'+idx).style.display='block';
+  document.getElementById('corrForm_'+idx).innerHTML=`
+    <div class="correction-form">
+      <div style="font-size:11px;font-weight:600;margin-bottom:6px">⚖️ 판정 수정</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px">현재: <b>${r.levelLabel}</b> →</span>
+        <select id="corrJudge_${idx}">
+          <option value="정상" ${'정상'===r.levelLabel?'selected':''}>정상</option>
+          <option value="경고" ${'경고'===r.levelLabel?'selected':''}>경고</option>
+          <option value="이상" ${'이상'===r.levelLabel?'selected':''}>이상</option>
+        </select>
+        <button class="btn btn-w" onclick="submitJudgeCorrection(${idx})" style="padding:4px 12px;font-size:10px">판정 수정</button>
+      </div>
+    </div>`;
+}
+
+function submitCorrection(idx){
+  const r=lastResults[idx];
+  const newVal=parseFloat(document.getElementById('corrVal_'+idx).value);
+  if(isNaN(newVal)){alert('올바른 숫자를 입력하세요');return;}
+
+  corrections.push({
+    id:'c'+Date.now(),
+    equipQr:currentEquip.qr,
+    metric:r.zone.metric,
+    ocrText:r.text,
+    ocrValue:r.value,
+    correctValue:newVal,
+    timestamp:new Date().toISOString(),
+    applied:0,
+  });
+  saveCorrections();
+
+  log(`[학습] ${r.zone.label}: OCR ${r.value} → 실제 ${newVal}`,'info');
+  toast(`🧠 학습 등록: ${r.zone.label} ${r.value} → ${newVal}`);
+  speak(`${r.zone.label} 보정값 ${newVal} 등록했습니다.`);
+
+  document.getElementById('corrForm_'+idx).innerHTML=`<div style="font-size:10px;color:var(--info);padding:6px">✅ 보정 등록 완료 — 다음 촬영부터 자동 적용</div>`;
+}
+
+function submitJudgeCorrection(idx){
+  const r=lastResults[idx];
+  const newJudge=document.getElementById('corrJudge_'+idx).value;
+
+  corrections.push({
+    id:'j'+Date.now(),
+    equipQr:currentEquip.qr,
+    metric:r.zone.metric,
+    type:'judgment',
+    ocrValue:r.value,
+    originalJudge:r.levelLabel,
+    correctJudge:newJudge,
+    timestamp:new Date().toISOString(),
+  });
+  saveCorrections();
+
+  log(`[판정수정] ${r.zone.label}: ${r.levelLabel} → ${newJudge}`,'info');
+  toast(`⚖️ 판정 수정: ${r.zone.label} → ${newJudge}`);
+  document.getElementById('corrForm_'+idx).innerHTML=`<div style="font-size:10px;color:var(--info);padding:6px">✅ 판정 수정 기록 완료</div>`;
+}
+
+/** 보정값 검색: 같은 설비 + 같은 항목 + OCR 텍스트 유사 */
+function findCorrection(equipQr,metric,ocrText){
+  const candidates=corrections.filter(c=>c.equipQr===equipQr&&c.metric===metric&&!c.type);
+  if(!candidates.length)return null;
+
+  // OCR 텍스트가 유사한 보정값 검색 (편집 거리 또는 포함 관계)
+  for(const c of candidates){
+    const ocrNorm=c.ocrText.replace(/\s/g,'').toLowerCase();
+    const curNorm=ocrText.replace(/\s/g,'').toLowerCase();
+    if(ocrNorm===curNorm||curNorm.includes(ocrNorm)||ocrNorm.includes(curNorm)){
+      return c;
+    }
+    // 숫자만 비교
+    const cNums=c.ocrText.match(/-?\d+\.?\d*/g);
+    const tNums=ocrText.match(/-?\d+\.?\d*/g);
+    if(cNums&&tNums&&cNums[0]===tNums[0]){
+      return c;
+    }
+  }
+  return null;
+}
+
+function bumpCorrectionApplied(corrId){
+  const c=corrections.find(x=>x.id===corrId);
+  if(c)c.applied=(c.applied||0)+1;
+  saveCorrections();
+}
+
+// ═══════════════════════════════════════
+// Learn & History rendering
+// ═══════════════════════════════════════
+function renderLearn(){
+  document.getElementById('learnTotal').textContent=corrections.length;
+  const applied=corrections.reduce((s,c)=>s+(c.applied||0),0);
+  document.getElementById('learnApplied').textContent=applied;
+  document.getElementById('learnAccuracy').textContent=corrections.length>0?Math.round(applied/corrections.length*100)+'%':'—';
+
+  // 관리자만 일괄 삭제 보이기
+  document.getElementById('learnAdminArea').style.display = hasPermission('learn_bulk_delete') ? 'block' : 'none';
+
+  const canDelete = hasPermission('learn_delete');
+
+  document.getElementById('learnList').innerHTML=corrections.length===0
+    ?'<div class="card" style="text-align:center;color:var(--muted);padding:24px">학습 데이터가 없습니다.<br>판정 화면에서 오인식을 수정하면 자동으로 기록됩니다.</div>'
+    :corrections.slice().reverse().map((c,ri)=>{
+      const idx = corrections.length - 1 - ri; // 원본 배열 인덱스
+      return `
+      <div class="card" style="border-left:3px solid ${c.type==='judgment'?'var(--warning)':'var(--info)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600">${c.type==='judgment'?'⚖️ 판정수정':'🧠 값보정'}: ${c.metric}</span>
+          <div style="display:flex;gap:4px;align-items:center">
+            <span class="badge ${c.applied>0?'b-ok':'b-info'}">${c.applied>0?'적용 '+c.applied+'회':'대기'}</span>
+            ${canDelete?'<button onclick="deleteCorrection('+idx+')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--danger)" title="이 보정 삭제">✕</button>':''}
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">
+          ${c.type==='judgment'
+            ?'판정: '+c.originalJudge+' → <b>'+c.correctJudge+'</b>'
+            :'OCR: '+c.ocrValue+' → 실제: <b>'+c.correctValue+'</b>'}
+          · 설비: ${c.equipQr}
+          · ${new Date(c.timestamp).toLocaleString('ko-KR')}
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function deleteCorrection(idx) {
+  if (!hasPermission('learn_delete')) { toast('삭제 권한이 없습니다'); return; }
+  const c = corrections[idx];
+  if (!confirm(`이 보정을 삭제하시겠습니까?\n${c.metric}: ${c.ocrValue} → ${c.correctValue || c.correctJudge}`)) return;
+  corrections.splice(idx, 1);
+  saveCorrections();
+  renderLearn();
+  toast('보정 데이터 1건 삭제');
+  log('보정 삭제: ' + c.metric, 'info');
+}
+
+function renderHistory(){
+  // 관리자만 이력 초기화 보이기
+  document.getElementById('histAdminArea').style.display = hasPermission('history_delete') ? 'block' : 'none';
+
+  document.getElementById('historyList').innerHTML=judgeHistory.length===0
+    ?'<div class="card" style="text-align:center;color:var(--muted);padding:24px">판정 이력이 없습니다.</div>'
+    :judgeHistory.slice(0,50).map(h=>`
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600">${h.equipName}</span>
+          <span style="font-size:10px;color:var(--muted)">${new Date(h.timestamp).toLocaleString('ko-KR')}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          ${h.results.map(r=>{
+            const cls=r.level==='정상'?'b-ok':r.level==='경고'?'b-warn':'b-err';
+            return '<span class="badge '+cls+'">'+r.label+': '+(r.value||'—')+' '+r.level+(r.corrected?' 🧠':'')+'</span>';
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+}
+
+// ═══════════════════════════════════════
+// User Login / Role UI
+// ═══════════════════════════════════════
+function showLogin() {
+  const users = Object.values(usersDB);
+  const userOptions = users.map(u => {
+    const role = ROLES[u.role];
+    return `<option value="${u.id}">${u.name} (${role?.label || u.role})</option>`;
+  }).join('');
+
+  document.getElementById('wrap').insertAdjacentHTML('afterbegin', `
+    <div id="loginOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center">
+      <div style="background:var(--card);border-radius:16px;padding:24px;width:90%;max-width:340px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🏭</div>
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:4px">WIZ-Flow 판정</h2>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:16px">사용자를 선택하고 PIN을 입력하세요</p>
+        <select id="loginUser" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font);margin-bottom:8px">
+          ${userOptions}
+        </select>
+        <input id="loginPin" type="password" placeholder="PIN (기본: 1234 / 0000)" maxlength="6"
+          style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:center;font-family:var(--font);margin-bottom:12px"/>
+        <button onclick="doLogin()" class="btn btn-p btn-full" style="padding:12px">로그인</button>
+        <p id="loginErr" style="font-size:11px;color:var(--danger);margin-top:8px;display:none"></p>
+      </div>
+    </div>
+  `);
+  document.getElementById('loginPin').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+}
+
+function doLogin() {
+  const userId = document.getElementById('loginUser').value;
+  const pin = document.getElementById('loginPin').value;
+  const user = usersDB[userId];
+
+  if (!user || user.pin !== pin) {
+    document.getElementById('loginErr').style.display = 'block';
+    document.getElementById('loginErr').textContent = 'PIN이 올바르지 않습니다';
+    return;
+  }
+
+  currentUser = user;
+  localStorage.setItem('wizflow_current_user', JSON.stringify(user));
+  document.getElementById('loginOverlay')?.remove();
+  applyRoleUI();
+  log(`로그인: ${user.name} (${ROLES[user.role]?.label})`, 'ok');
+  toast(`${user.name}님 로그인`);
+  startQr();
+}
+
+function applyRoleUI() {
+  if (!currentUser) return;
+  const role = ROLES[currentUser.role];
+
+  // 헤더에 사용자 표시
+  const headerH1 = document.querySelector('.header h1');
+  const existing = document.getElementById('userBadge');
+  if (existing) existing.remove();
+  headerH1.insertAdjacentHTML('beforeend',
+    `<span id="userBadge" style="font-size:9px;padding:2px 7px;border-radius:8px;background:${role.color}22;color:${role.color};font-weight:600;cursor:pointer" onclick="logoutUser()">${currentUser.name} · ${role.label} ⏻</span>`
+  );
+
+  // 기준정보 설정 버튼: 관리자만
+  const settingsBtn = document.querySelector('.header .btn-o');
+  if (settingsBtn) settingsBtn.style.display = hasPermission('settings') ? 'inline-flex' : 'none';
+}
+
+function logoutUser() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  currentUser = null;
+  localStorage.removeItem('wizflow_current_user');
+  location.reload();
+}
+
+function autoLogin() {
+  try {
+    const saved = localStorage.getItem('wizflow_current_user');
+    if (saved) {
+      const user = JSON.parse(saved);
+      if (usersDB[user.id]) {
+        currentUser = user;
+        applyRoleUI();
+        log(`자동 로그인: ${user.name}`, 'info');
+        return true;
+      }
+    }
+  } catch(e) {}
+  return false;
+}
+
+// ═══════════════════════════════════════
+// Voice
+// ═══════════════════════════════════════
+function toggleVoice(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){alert('Chrome 필요');return;}
+  if(isListening){recognition.stop();isListening=false;document.getElementById('vBtn').textContent='🎤 음성 명령 시작';return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();recognition.lang='ko-KR';recognition.continuous=false;recognition.interimResults=true;
+  recognition.onresult=e=>{
+    const t=Array.from(e.results).map(r=>r[0].transcript).join('');
+    document.getElementById('vText').textContent=t;
+    if(e.results[0].isFinal){
+      const n=t.replace(/\s/g,'');
+      if(n.includes('촬영'))goTab('judge');
+      else if(n.includes('스캔')||n.includes('QR')||n.includes('큐알'))resetToQr();
+      else{
+        const item=lastResults.find(r=>n.includes(r.zone.label));
+        if(item)speak(`${item.zone.label} ${item.value}${item.zone.unit}, ${item.levelLabel}`);
+        else speak('최근 판정이 없습니다.');
+      }
+    }
+  };
+  recognition.onend=()=>{isListening=false;document.getElementById('vBtn').textContent='🎤 음성 명령 시작';};
+  recognition.start();isListening=true;document.getElementById('vBtn').textContent='🔴 듣는 중...';
+}
+
+function speak(t){if(!('speechSynthesis' in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=1.1;speechSynthesis.speak(u);}
+
+// Utils
+let toastTm;
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(toastTm);toastTm=setTimeout(()=>e.classList.remove('show'),2500);}
+function log(m,l){
+  const b=document.getElementById('logBox');const t=new Date().toTimeString().split(' ')[0];
+  const e=document.createElement('div');e.className='log-e';
+  const cls={info:'b-info',warn:'b-warn',error:'b-err',ok:'b-ok'}[l]||'b-info';
+  e.innerHTML=`<span class="log-t">${t}</span><span class="log-m" style="flex:1">${m}</span><span class="badge ${cls}" style="font-size:9px">${(l||'info').toUpperCase()}</span>`;
+  b.insertBefore(e,b.firstChild);while(b.children.length>50)b.removeChild(b.lastChild);
+}
+
+// Init
+loadAll();log('판정 화면 시작','info');
+log(`플랫폼: ${isIOS?'iOS':isAndroid?'Android':'PC'} / ${location.protocol}`,'info');
+
+if (!autoLogin()) { showLogin(); } else { startQr(); }
+</script>
+</body>
+</html>
